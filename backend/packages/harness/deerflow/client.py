@@ -441,7 +441,7 @@ class DeerFlowClient:
         """
         last_text = ""
         for event in self.stream(message, thread_id=thread_id, **kwargs):
-            if event.type == "messages-tuple" and event.data.get("type") == "ai":
+            if event.type == "messages-tuple" and event.data.get("type") == "ai": ## ai response
                 content = event.data.get("content", "")
                 if content:
                     last_text = content
