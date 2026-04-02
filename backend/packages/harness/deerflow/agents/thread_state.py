@@ -46,10 +46,10 @@ def merge_viewed_images(existing: dict[str, ViewedImageData] | None, new: dict[s
 
 
 class ThreadState(AgentState):
-    sandbox: NotRequired[SandboxState | None]
-    thread_data: NotRequired[ThreadDataState | None]
+    sandbox: NotRequired[SandboxState | None] # sandbox env ID
+    thread_data: NotRequired[ThreadDataState | None] # work env path
     title: NotRequired[str | None]
     artifacts: Annotated[list[str], merge_artifacts]
-    todos: NotRequired[list | None]
+    todos: NotRequired[list | None] #to dos list
     uploaded_files: NotRequired[list[dict] | None]
     viewed_images: Annotated[dict[str, ViewedImageData], merge_viewed_images]  # image_path -> {base64, mime_type}

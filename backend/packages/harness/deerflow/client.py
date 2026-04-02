@@ -217,17 +217,20 @@ class DeerFlowClient:
         model_name = cfg.get("model_name")
         subagent_enabled = cfg.get("subagent_enabled", False)
         max_concurrent_subagents = cfg.get("max_concurrent_subagents", 3)
-
+        """
+        Middleware example:
+        TOdoMiddleware(system_prompt=system_prompt, todo_description)
+        """
         kwargs: dict[str, Any] = {
             "model": create_chat_model(name=model_name, thinking_enabled=thinking_enabled),
-            "tools": self._get_tools(model_name=model_name, subagent_enabled=subagent_enabled),
+            "tools": self._get_tools(model_name=model_name, subagent_enabled=subagent_enabled), # tool list
             "middleware": _build_middlewares(config, model_name=model_name, agent_name=self._agent_name, custom_middlewares=self._middlewares),
             "system_prompt": apply_prompt_template(
                 subagent_enabled=subagent_enabled,
                 max_concurrent_subagents=max_concurrent_subagents,
                 agent_name=self._agent_name,
             ),
-            "state_schema": ThreadState,
+            "state_schema": ThreadState, # initialize thread state
         }
         checkpointer = self._checkpointer
         if checkpointer is None:
@@ -344,12 +347,15 @@ class DeerFlowClient:
             - type="messages-tuple"  data={"type": "ai", "content": "", "id": str, "tool_calls": [...]}
             - type="messages-tuple"  data={"type": "tool", "content": str, "name": str, "tool_call_id": str, "id": str}
             - type="end"             data={"usage": {"input_tokens": int, "output_tokens": int, "total_tokens": int}}
+
+        @note SSE (Server-Sent Events) - HTTP allow server push to clients. Langraph use SSE to update client in real-time.
+        stream() function aligned with SSE
         """
         if thread_id is None:
             thread_id = str(uuid.uuid4())
 
         config = self._get_runnable_config(thread_id, **kwargs)
-        self._ensure_agent(config)
+        self._ensure_agent(config) ## create agent
 
         state: dict[str, Any] = {"messages": [HumanMessage(content=message)]}
         context = {"thread_id": thread_id}
@@ -359,6 +365,7 @@ class DeerFlowClient:
         seen_ids: set[str] = set()
         cumulative_usage: dict[str, int] = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
 
+        """ Call LangGraph """
         for chunk in self._agent.stream(state, config=config, context=context, stream_mode="values"):
             messages = chunk.get("messages", [])
 
@@ -441,7 +448,7 @@ class DeerFlowClient:
         """
         last_text = ""
         for event in self.stream(message, thread_id=thread_id, **kwargs):
-            if event.type == "messages-tuple" and event.data.get("type") == "ai":
+            if event.type == "messages-tuple" and event.data.get("type") == "ai": ## ai response
                 content = event.data.get("content", "")
                 if content:
                     last_text = content

@@ -216,6 +216,16 @@ def _build_middlewares(config: RunnableConfig, model_name: str | None, agent_nam
     Returns:
         List of middleware instances.
     """
+
+    """
+     1. ThreadDataMiddleware      - 初始化路径                                                                                                                      
+     2. UploadsMiddleware         - 处理上传文件                                                                                                                    
+     3. SandboxMiddleware         - 获取沙箱                                                                                                                       
+     4. DanglingToolCallMiddleware - 修复悬空工具调用                                                                                                               
+     5. GuardrailMiddleware       - 安全护栏 (可选)                                                                                                                  
+     6. SandboxAuditMiddleware    - 沙箱审计                                                                                                                         
+     7. ToolErrorHandlingMiddleware - 工具错误处理 
+    """
     middlewares = build_lead_runtime_middlewares(lazy_init=True)
 
     # Add summarization middleware if enabled

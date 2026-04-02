@@ -51,6 +51,8 @@ class TodoMiddleware(TodoListMiddleware):
     history (e.g., after summarization), the model loses awareness of the current
     todo list. This middleware detects that gap in `before_model` / `abefore_model`
     and injects a reminder message so the model can continue tracking progress.
+
+    @note: override before_model function to prevent write_todos instruction loss
     """
 
     @override
@@ -59,11 +61,13 @@ class TodoMiddleware(TodoListMiddleware):
         state: PlanningState,
         runtime: Runtime,  # noqa: ARG002
     ) -> dict[str, Any] | None:
-        """Inject a todo-list reminder when write_todos has left the context window."""
+        """Inject a todo-list reminder when write_todos has left the context window. In case the model forget after summarization"""
+        # check if there are unfinished todos
         todos: list[Todo] = state.get("todos") or []  # type: ignore[assignment]
         if not todos:
             return None
 
+        # check todos msg exist
         messages = state.get("messages") or []
         if _todos_in_messages(messages):
             # write_todos is still visible in context — nothing to do.
