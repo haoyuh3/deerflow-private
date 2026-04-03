@@ -223,14 +223,14 @@ class DeerFlowClient:
         """
         kwargs: dict[str, Any] = {
             "model": create_chat_model(name=model_name, thinking_enabled=thinking_enabled),
-            "tools": self._get_tools(model_name=model_name, subagent_enabled=subagent_enabled), # tool list
+            "tools": self._get_tools(model_name=model_name, subagent_enabled=subagent_enabled),  # tool list
             "middleware": _build_middlewares(config, model_name=model_name, agent_name=self._agent_name, custom_middlewares=self._middlewares),
             "system_prompt": apply_prompt_template(
                 subagent_enabled=subagent_enabled,
                 max_concurrent_subagents=max_concurrent_subagents,
                 agent_name=self._agent_name,
             ),
-            "state_schema": ThreadState, # initialize thread state
+            "state_schema": ThreadState,  # initialize thread state
         }
         checkpointer = self._checkpointer
         if checkpointer is None:
@@ -355,7 +355,7 @@ class DeerFlowClient:
             thread_id = str(uuid.uuid4())
 
         config = self._get_runnable_config(thread_id, **kwargs)
-        self._ensure_agent(config) ## create agent
+        self._ensure_agent(config)  ## create agent
 
         state: dict[str, Any] = {"messages": [HumanMessage(content=message)]}
         context = {"thread_id": thread_id}
@@ -368,7 +368,7 @@ class DeerFlowClient:
         """ Call LangGraph """
         for chunk in self._agent.stream(state, config=config, context=context, stream_mode="values"):
             messages = chunk.get("messages", [])
-
+            ## Process MESSAGES chunk
             for msg in messages:
                 msg_id = getattr(msg, "id", None)
                 if msg_id and msg_id in seen_ids:
@@ -448,7 +448,7 @@ class DeerFlowClient:
         """
         last_text = ""
         for event in self.stream(message, thread_id=thread_id, **kwargs):
-            if event.type == "messages-tuple" and event.data.get("type") == "ai": ## ai response
+            if event.type == "messages-tuple" and event.data.get("type") == "ai":  ## ai response
                 content = event.data.get("content", "")
                 if content:
                     last_text = content

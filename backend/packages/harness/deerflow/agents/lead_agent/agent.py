@@ -6,6 +6,7 @@ from langchain_core.runnables import RunnableConfig
 
 from deerflow.agents.lead_agent.prompt import apply_prompt_template
 from deerflow.agents.middlewares.clarification_middleware import ClarificationMiddleware
+from deerflow.agents.middlewares.logging_middleware import LoggingMiddleware
 from deerflow.agents.middlewares.loop_detection_middleware import LoopDetectionMiddleware
 from deerflow.agents.middlewares.memory_middleware import MemoryMiddleware
 from deerflow.agents.middlewares.subagent_limit_middleware import SubagentLimitMiddleware
@@ -224,9 +225,12 @@ def _build_middlewares(config: RunnableConfig, model_name: str | None, agent_nam
      4. DanglingToolCallMiddleware - 修复悬空工具调用                                                                                                               
      5. GuardrailMiddleware       - 安全护栏 (可选)                                                                                                                  
      6. SandboxAuditMiddleware    - 沙箱审计                                                                                                                         
-     7. ToolErrorHandlingMiddleware - 工具错误处理 
+     7. ToolErrorHandlingMiddleware - 工具错误处理
     """
     middlewares = build_lead_runtime_middlewares(lazy_init=True)
+
+    # Add LoggingMiddleware at the beginning to observe the full execution flow
+    # middlewares.insert(0, LoggingMiddleware(prefix=""))
 
     # Add summarization middleware if enabled
     summarization_middleware = _create_summarization_middleware()

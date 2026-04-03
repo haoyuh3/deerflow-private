@@ -45,11 +45,25 @@ def merge_viewed_images(existing: dict[str, ViewedImageData] | None, new: dict[s
     return {**existing, **new}
 
 
+"""
+ThreadState extends AgentState with additional fields specific to the thread.
+Reducers: Functions that merge new state into existing state.
+message inherited from agentState
+
+Merge Artifacts: Merges and deduplicates artifacts list.
+Merge Viewed Images: Merges image dictionaries, new values override existing ones for same keys.
+Special Case: If new viewed_images dict is empty, it clears all viewed images.
+
+Use Annotated to specify reducers for custom fields. LangChain will use these reducers
+to merge new state into existing state when updating the agent state.
+"""
+
+
 class ThreadState(AgentState):
-    sandbox: NotRequired[SandboxState | None] # sandbox env ID
-    thread_data: NotRequired[ThreadDataState | None] # work env path
+    sandbox: NotRequired[SandboxState | None]  # sandbox env ID
+    thread_data: NotRequired[ThreadDataState | None]  # work env path
     title: NotRequired[str | None]
     artifacts: Annotated[list[str], merge_artifacts]
-    todos: NotRequired[list | None] #to dos list
+    todos: NotRequired[list | None]  # to dos list
     uploaded_files: NotRequired[list[dict] | None]
     viewed_images: Annotated[dict[str, ViewedImageData], merge_viewed_images]  # image_path -> {base64, mime_type}
