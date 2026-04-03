@@ -19,6 +19,17 @@ class TitleMiddlewareState(AgentState):
     title: NotRequired[str | None]
 
 
+"""
+Middleware for automatically generating a title for the thread after the first user message.
+Middleware VS LangGraph:
+LangGraph is a more low-level framework that allows for more custom control over the
+execution of the agent, while this middleware provides a higher-level abstraction for
+automatically generating a title for the thread.
+
+LangGraph will merge {"title": "xxx"} to the thread state. Push to frontend through SSE
+"""
+
+
 class TitleMiddleware(AgentMiddleware[TitleMiddlewareState]):
     """Automatically generate a title for the thread after the first user message."""
 
@@ -73,12 +84,14 @@ class TitleMiddleware(AgentMiddleware[TitleMiddlewareState]):
         config = get_title_config()
         messages = state.get("messages", [])
 
+        # Extract user and assistant messages
         user_msg_content = next((m.content for m in messages if m.type == "human"), "")
         assistant_msg_content = next((m.content for m in messages if m.type == "ai"), "")
 
         user_msg = self._normalize_content(user_msg_content)
         assistant_msg = self._normalize_content(assistant_msg_content)
 
+        # Build the title prompt
         prompt = config.prompt_template.format(
             max_words=config.max_words,
             user_msg=user_msg[:500],
@@ -110,7 +123,7 @@ class TitleMiddleware(AgentMiddleware[TitleMiddlewareState]):
         model = create_chat_model(name=config.model_name, thinking_enabled=False)
 
         try:
-            response = model.invoke(prompt)
+            response = model.invoke(prompt)  # model generate title
             title = self._parse_title(response.content)
             if not title:
                 title = self._fallback_title(user_msg)
