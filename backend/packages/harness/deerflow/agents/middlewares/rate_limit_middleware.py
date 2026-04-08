@@ -157,10 +157,7 @@ class RateLimitMiddleware(AgentMiddleware[AgentState]):
         if self._thread_rpm > 0:
             bucket = self._get_thread_bucket(thread_id)
             if not bucket.consume():
-                msg = (
-                    f"Rate limit exceeded for thread '{thread_id}': "
-                    f"max {self._thread_rpm} LLM calls/min per thread."
-                )
+                msg = f"Rate limit exceeded for thread '{thread_id}': max {self._thread_rpm} LLM calls/min per thread."
                 logger.warning("RateLimitMiddleware: %s", msg)
                 raise RateLimitError(msg)
 
@@ -175,22 +172,15 @@ class RateLimitMiddleware(AgentMiddleware[AgentState]):
                     )
                     time.sleep(self._retry_wait)
                     if not global_bucket.consume():
-                        msg = (
-                            f"Global rate limit exceeded: max {self._global_rpm} LLM calls/min. "
-                            f"Retry after {self._retry_wait}s also failed."
-                        )
+                        msg = f"Global rate limit exceeded: max {self._global_rpm} LLM calls/min. Retry after {self._retry_wait}s also failed."
                         logger.warning("RateLimitMiddleware: %s", msg)
                         raise RateLimitError(msg)
                 else:
-                    msg = (
-                        f"Global rate limit exceeded: max {self._global_rpm} LLM calls/min."
-                    )
+                    msg = f"Global rate limit exceeded: max {self._global_rpm} LLM calls/min."
                     logger.warning("RateLimitMiddleware: %s", msg)
                     raise RateLimitError(msg)
 
-        logger.debug(
-            "RateLimitMiddleware: allowed call for thread '%s'", thread_id
-        )
+        logger.debug("RateLimitMiddleware: allowed call for thread '%s'", thread_id)
 
     async def _acheck(self, runtime: Runtime) -> None:
         """Async version of _check; uses asyncio.sleep for the retry wait."""
@@ -199,10 +189,7 @@ class RateLimitMiddleware(AgentMiddleware[AgentState]):
         if self._thread_rpm > 0:
             bucket = self._get_thread_bucket(thread_id)
             if not bucket.consume():
-                msg = (
-                    f"Rate limit exceeded for thread '{thread_id}': "
-                    f"max {self._thread_rpm} LLM calls/min per thread."
-                )
+                msg = f"Rate limit exceeded for thread '{thread_id}': max {self._thread_rpm} LLM calls/min per thread."
                 logger.warning("RateLimitMiddleware: %s", msg)
                 raise RateLimitError(msg)
 
@@ -216,22 +203,15 @@ class RateLimitMiddleware(AgentMiddleware[AgentState]):
                     )
                     await asyncio.sleep(self._retry_wait)
                     if not global_bucket.consume():
-                        msg = (
-                            f"Global rate limit exceeded: max {self._global_rpm} LLM calls/min. "
-                            f"Retry after {self._retry_wait}s also failed."
-                        )
+                        msg = f"Global rate limit exceeded: max {self._global_rpm} LLM calls/min. Retry after {self._retry_wait}s also failed."
                         logger.warning("RateLimitMiddleware: %s", msg)
                         raise RateLimitError(msg)
                 else:
-                    msg = (
-                        f"Global rate limit exceeded: max {self._global_rpm} LLM calls/min."
-                    )
+                    msg = f"Global rate limit exceeded: max {self._global_rpm} LLM calls/min."
                     logger.warning("RateLimitMiddleware: %s", msg)
                     raise RateLimitError(msg)
 
-        logger.debug(
-            "RateLimitMiddleware: allowed call for thread '%s'", thread_id
-        )
+        logger.debug("RateLimitMiddleware: allowed call for thread '%s'", thread_id)
 
     # ------------------------------------------------------------------
     # AgentMiddleware hooks

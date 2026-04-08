@@ -29,6 +29,7 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
+
 def _default_config_candidates() -> tuple[Path, ...]:
     """Return deterministic config.yaml locations without relying on cwd."""
     backend_dir = Path(__file__).resolve().parents[4]
