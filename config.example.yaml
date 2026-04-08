@@ -29,6 +29,20 @@ token_usage:
   enabled: false
 
 # ============================================================================
+# Rate Limiting Configuration
+# ============================================================================
+# Dual-bucket token-bucket rate limiter applied before every LLM call.
+# global_rpm  — total LLM calls/min across all threads (0 = unlimited)
+# thread_rpm  — LLM calls/min per individual thread_id (0 = unlimited)
+# retry_wait_seconds — when > 0, block and retry once on global exhaustion
+#                      instead of failing immediately (0 = raise at once)
+rate_limit:
+  enabled: false
+  global_rpm: 60
+  thread_rpm: 10
+  retry_wait_seconds: 0.0
+
+# ============================================================================
 # Models Configuration
 # ============================================================================
 # Configure available LLM models for the agent to use

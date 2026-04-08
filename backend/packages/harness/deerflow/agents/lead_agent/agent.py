@@ -7,6 +7,7 @@ from langchain_core.runnables import RunnableConfig
 from deerflow.agents.lead_agent.prompt import apply_prompt_template
 from deerflow.agents.middlewares.clarification_middleware import ClarificationMiddleware
 from deerflow.agents.middlewares.loop_detection_middleware import LoopDetectionMiddleware
+from deerflow.agents.middlewares.rate_limit_middleware import RateLimitMiddleware
 from deerflow.agents.middlewares.memory_middleware import MemoryMiddleware
 from deerflow.agents.middlewares.subagent_limit_middleware import SubagentLimitMiddleware
 from deerflow.agents.middlewares.title_middleware import TitleMiddleware
@@ -273,6 +274,17 @@ def _build_middlewares(config: RunnableConfig, model_name: str | None, agent_nam
 
     # LoopDetectionMiddleware — detect and break repetitive tool call loops
     middlewares.append(LoopDetectionMiddleware())
+
+    # RateLimitMiddleware — dual-bucket (global + per-thread) token-bucket limiting
+    rate_limit_cfg = get_app_config().rate_limit
+    if rate_limit_cfg.enabled:
+        middlewares.append(
+            RateLimitMiddleware(
+                global_rpm=rate_limit_cfg.global_rpm,
+                thread_rpm=rate_limit_cfg.thread_rpm,
+                retry_wait_seconds=rate_limit_cfg.retry_wait_seconds,
+            )
+        )
 
     # Inject custom middlewares before ClarificationMiddleware
     if custom_middlewares:
