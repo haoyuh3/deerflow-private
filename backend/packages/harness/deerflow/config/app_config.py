@@ -1,5 +1,6 @@
 import logging
 import os
+from contextvars import ContextVar
 from pathlib import Path
 from typing import Any, Self
 
@@ -27,6 +28,12 @@ from deerflow.config.tool_search_config import ToolSearchConfig, load_tool_searc
 load_dotenv()
 
 logger = logging.getLogger(__name__)
+
+def _default_config_candidates() -> tuple[Path, ...]:
+    """Return deterministic config.yaml locations without relying on cwd."""
+    backend_dir = Path(__file__).resolve().parents[4]
+    repo_root = backend_dir.parent
+    return (backend_dir / "config.yaml", repo_root / "config.yaml")
 
 
 class AppConfig(BaseModel):
@@ -66,14 +73,10 @@ class AppConfig(BaseModel):
                 raise FileNotFoundError(f"Config file specified by environment variable `DEER_FLOW_CONFIG_PATH` not found at {path}")
             return path
         else:
-            # Check if the config.yaml is in the current directory
-            path = Path(os.getcwd()) / "config.yaml"
-            if not path.exists():
-                # Check if the config.yaml is in the parent directory of CWD
-                path = Path(os.getcwd()).parent / "config.yaml"
-                if not path.exists():
-                    raise FileNotFoundError("`config.yaml` file not found at the current directory nor its parent directory")
-            return path
+            for path in _default_config_candidates():
+                if path.exists():
+                    return path
+            raise FileNotFoundError("`config.yaml` file not found at the default backend or repository root locations")
 
     @classmethod
     def from_file(cls, config_path: str | None = None) -> Self:
@@ -246,6 +249,8 @@ _app_config: AppConfig | None = None
 _app_config_path: Path | None = None
 _app_config_mtime: float | None = None
 _app_config_is_custom = False
+_current_app_config: ContextVar[AppConfig | None] = ContextVar("deerflow_current_app_config", default=None)
+_current_app_config_stack: ContextVar[tuple[AppConfig | None, ...]] = ContextVar("deerflow_current_app_config_stack", default=())
 
 
 def _get_config_mtime(config_path: Path) -> float | None:
@@ -277,6 +282,10 @@ def get_app_config() -> AppConfig:
     the cache.
     """
     global _app_config, _app_config_path, _app_config_mtime
+
+    runtime_override = _current_app_config.get()
+    if runtime_override is not None:
+        return runtime_override
 
     if _app_config is not None and _app_config_is_custom:
         return _app_config
@@ -339,3 +348,26 @@ def set_app_config(config: AppConfig) -> None:
     _app_config_path = None
     _app_config_mtime = None
     _app_config_is_custom = True
+
+
+def peek_current_app_config() -> AppConfig | None:
+    """Return the runtime-scoped AppConfig override, if one is active."""
+    return _current_app_config.get()
+
+
+def push_current_app_config(config: AppConfig) -> None:
+    """Push a runtime-scoped AppConfig override for the current execution context."""
+    stack = _current_app_config_stack.get()
+    _current_app_config_stack.set(stack + (_current_app_config.get(),))
+    _current_app_config.set(config)
+
+
+def pop_current_app_config() -> None:
+    """Pop the latest runtime-scoped AppConfig override for the current execution context."""
+    stack = _current_app_config_stack.get()
+    if not stack:
+        _current_app_config.set(None)
+        return
+    previous = stack[-1]
+    _current_app_config_stack.set(stack[:-1])
+    _current_app_config.set(previous)
