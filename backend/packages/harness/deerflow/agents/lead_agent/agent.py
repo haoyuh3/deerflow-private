@@ -6,6 +6,7 @@ from langchain_core.runnables import RunnableConfig
 
 from deerflow.agents.lead_agent.prompt import apply_prompt_template
 from deerflow.agents.middlewares.clarification_middleware import ClarificationMiddleware
+from deerflow.agents.middlewares.logging_middleware import LoggingMiddleware
 from deerflow.agents.middlewares.loop_detection_middleware import LoopDetectionMiddleware
 from deerflow.agents.middlewares.memory_middleware import MemoryMiddleware
 from deerflow.agents.middlewares.rate_limit_middleware import RateLimitMiddleware
@@ -230,7 +231,7 @@ def _build_middlewares(config: RunnableConfig, model_name: str | None, agent_nam
     middlewares = build_lead_runtime_middlewares(lazy_init=True)
 
     # Add LoggingMiddleware at the beginning to observe the full execution flow
-    # middlewares.insert(0, LoggingMiddleware(prefix=""))
+    middlewares.insert(0, LoggingMiddleware(prefix=""))
 
     # Add summarization middleware if enabled
     summarization_middleware = _create_summarization_middleware()
