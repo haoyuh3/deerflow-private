@@ -1343,3 +1343,68 @@ def str_replace_tool(
         return f"Error: Permission denied accessing file: {requested_path}"
     except Exception as e:
         return f"Error: Unexpected error replacing string: {_sanitize_error(e, runtime)}"
+
+
+@tool("stat_file", parse_docstring=True)
+def stat_file_tool(
+    runtime: ToolRuntime[ContextT, ThreadState],
+    description: str,
+    path: str,
+) -> str:
+    """Return file-system metadata for a path without reading its content.
+
+    Mirrors the POSIX stat(2) syscall: reports existence, type (file/dir),
+    byte size, and last-modified time.  Use this to:
+      - Check whether a file exists before a read or write
+      - Guard large reads (inspect size first)
+      - Detect whether a file changed since the last access (compare mtime)
+      - Confirm a write succeeded (exists=true, size > 0)
+      - Distinguish writable workspace paths from read-only skill mounts
+
+    Unlike read_file this never loads file content into the context window,
+    making it cheap for repeated freshness checks.
+
+    Args:
+        description: Explain why you are checking this path in short words. ALWAYS PROVIDE THIS PARAMETER FIRST.
+        path: The **absolute** path to inspect (virtual container path, e.g. /mnt/user-data/workspace/result.txt).
+    """
+    try:
+        sandbox = ensure_sandbox_initialized(runtime)
+        ensure_thread_directories_exist(runtime)
+        requested_path = path
+        if is_local_sandbox(runtime):
+            thread_data = get_thread_data(runtime)
+            validate_local_tool_path(path, thread_data, read_only=True)
+            if _is_skills_path(path):
+                path = _resolve_skills_path(path)
+            elif _is_acp_workspace_path(path):
+                path = _resolve_acp_workspace_path(path, _extract_thread_id_from_thread_data(thread_data))
+            elif not _is_custom_mount_path(path):
+                path = _resolve_and_validate_user_data_path(path, thread_data)
+
+        stat = sandbox.stat_file(path)
+
+        if not stat.exists:
+            return f"path: {requested_path}\nexists: false"
+
+        import datetime
+
+        mtime_str = datetime.datetime.fromtimestamp(stat.mtime, tz=datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        lines = [
+            f"path: {requested_path}",
+            f"exists: true",
+            f"type: {'file' if stat.is_file else 'directory' if stat.is_dir else 'other'}",
+            f"size: {stat.size} bytes",
+            f"mtime: {mtime_str}",
+            f"readable: {str(stat.readable).lower()}",
+            f"writable: {str(stat.writable).lower()}",
+        ]
+        return "\n".join(lines)
+    except SandboxError as e:
+        return f"Error: {e}"
+    except FileNotFoundError:
+        return f"Error: Path not accessible: {requested_path}"
+    except PermissionError:
+        return f"Error: Permission denied: {requested_path}"
+    except Exception as e:
+        return f"Error: Unexpected error inspecting path: {_sanitize_error(e, runtime)}"

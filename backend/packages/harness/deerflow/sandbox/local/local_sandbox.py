@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from deerflow.sandbox.local.list_dir import list_dir
-from deerflow.sandbox.sandbox import Sandbox
+from deerflow.sandbox.sandbox import FileStat, Sandbox
 from deerflow.sandbox.search import GrepMatch, find_glob_matches, find_grep_matches
 
 
@@ -346,3 +346,39 @@ class LocalSandbox(Sandbox):
         except OSError as e:
             # Re-raise with the original path for clearer error messages, hiding internal resolved paths
             raise type(e)(e.errno, e.strerror, path) from None
+
+    def stat_file(self, path: str) -> FileStat:
+        """Return file-system metadata without reading file content.
+
+        Resolves the container virtual path to a host path via the same
+        PathMapping layer used by read_file/write_file, then delegates to
+        os.stat(2).  The read-only flag from the most-specific PathMapping is
+        forwarded so callers can distinguish read-only mounts (e.g. /mnt/skills)
+        from writable ones (/mnt/user-data/workspace) without a write attempt.
+        """
+        resolved_path = self._resolve_path(path)
+        try:
+            st = os.stat(resolved_path)
+        except FileNotFoundError:
+            return FileStat(
+                path=path,
+                exists=False,
+                is_file=False,
+                is_dir=False,
+                size=0,
+                mtime=0.0,
+                readable=False,
+                writable=False,
+            )
+
+        is_read_only_mount = self._is_read_only_path(resolved_path)
+        return FileStat(
+            path=path,
+            exists=True,
+            is_file=os.path.isfile(resolved_path),
+            is_dir=os.path.isdir(resolved_path),
+            size=st.st_size,
+            mtime=st.st_mtime,
+            readable=os.access(resolved_path, os.R_OK),
+            writable=(not is_read_only_mount) and os.access(resolved_path, os.W_OK),
+        )
