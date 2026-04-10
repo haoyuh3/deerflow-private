@@ -84,6 +84,7 @@ def _filter_messages_for_memory(messages: list[Any]) -> list[Any]:
     - Human messages (with the ephemeral upload block removed)
     - AI messages without tool_calls (final assistant responses), unless the
       paired human turn was upload-only and had no real user text.
+    - 只保留用户输入和最终的助手响应（无工具调用）
 
     Args:
         messages: List of all conversation messages.
@@ -241,8 +242,8 @@ class MemoryMiddleware(AgentMiddleware[MemoryMiddlewareState]):
             thread_id=thread_id,
             messages=filtered_messages,
             agent_name=self._agent_name,
-            correction_detected=correction_detected,
-            reinforcement_detected=reinforcement_detected,
+            correction_detected=correction_detected, # 识别用户是否修正了错误
+            reinforcement_detected=reinforcement_detected, # 识别用户是否对结果表示满意
         )
 
         return None

@@ -231,7 +231,7 @@ def _build_middlewares(config: RunnableConfig, model_name: str | None, agent_nam
     middlewares = build_lead_runtime_middlewares(lazy_init=True)
 
     # Add LoggingMiddleware at the beginning to observe the full execution flow
-    middlewares.insert(0, LoggingMiddleware(prefix=""))
+    # middlewares.insert(0, LoggingMiddleware(prefix=""))
 
     # Add summarization middleware if enabled
     summarization_middleware = _create_summarization_middleware()

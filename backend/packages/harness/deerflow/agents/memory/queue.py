@@ -61,12 +61,16 @@ class MemoryUpdateQueue:
             return
 
         with self._lock:
+            # Check if this thread already has a pending update
             existing_context = next(
                 (context for context in self._queue if context.thread_id == thread_id),
                 None,
             )
+            # Merge correction and reinforcement flags
             merged_correction_detected = correction_detected or (existing_context.correction_detected if existing_context is not None else False)
+            # Merge reinforcement flags
             merged_reinforcement_detected = reinforcement_detected or (existing_context.reinforcement_detected if existing_context is not None else False)
+            # Create a new context with merged flags and current messages
             context = ConversationContext(
                 thread_id=thread_id,
                 messages=messages,
