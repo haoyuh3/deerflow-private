@@ -5,6 +5,7 @@ from langchain.agents.middleware import AgentMiddleware, SummarizationMiddleware
 from langchain_core.runnables import RunnableConfig
 
 from deerflow.agents.lead_agent.prompt import apply_prompt_template
+from deerflow.agents.ordering import _insert_extra
 from deerflow.agents.middlewares.clarification_middleware import ClarificationMiddleware
 from deerflow.agents.middlewares.logging_middleware import LoggingMiddleware
 from deerflow.agents.middlewares.loop_detection_middleware import LoopDetectionMiddleware
@@ -287,12 +288,19 @@ def _build_middlewares(config: RunnableConfig, model_name: str | None, agent_nam
             )
         )
 
-    # Inject custom middlewares before ClarificationMiddleware
-    if custom_middlewares:
-        middlewares.extend(custom_middlewares)
-
-    # ClarificationMiddleware should always be last
+    # ClarificationMiddleware must always be last
     middlewares.append(ClarificationMiddleware())
+
+    # Insert custom middlewares via @Next/@Prev anchor declarations.
+    # Unanchored extras land just before ClarificationMiddleware.
+    # ClarificationMiddleware is re-pinned to the tail after insertion.
+    if custom_middlewares:
+        _insert_extra(middlewares, custom_middlewares)
+        # Re-pin ClarificationMiddleware to the absolute end in case a
+        # @Next(ClarificationMiddleware) pushed it off the tail.
+        clar_idx = next(i for i, m in enumerate(middlewares) if isinstance(m, ClarificationMiddleware))
+        if clar_idx != len(middlewares) - 1:
+            middlewares.append(middlewares.pop(clar_idx))
     return middlewares
 
 

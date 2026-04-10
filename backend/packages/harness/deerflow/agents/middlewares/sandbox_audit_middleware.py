@@ -13,7 +13,9 @@ from langchain_core.messages import ToolMessage
 from langgraph.prebuilt.tool_node import ToolCallRequest
 from langgraph.types import Command
 
+from deerflow.agents.features import Next
 from deerflow.agents.thread_state import ThreadState
+from deerflow.sandbox.middleware import SandboxMiddleware
 
 logger = logging.getLogger(__name__)
 
@@ -194,6 +196,7 @@ def _classify_command(command: str) -> str:
 # ---------------------------------------------------------------------------
 
 
+@Next(SandboxMiddleware)
 class SandboxAuditMiddleware(AgentMiddleware[ThreadState]):
     """Bash command security auditing middleware.
 

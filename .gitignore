@@ -57,3 +57,4 @@ config.yaml.bak
 .playwright-mcp
 .gstack/
 .worktrees
+/CLAUDE

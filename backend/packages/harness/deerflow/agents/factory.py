@@ -20,6 +20,7 @@ from langchain.agents.middleware import AgentMiddleware
 
 from deerflow.agents.features import RuntimeFeatures
 from deerflow.agents.middlewares.clarification_middleware import ClarificationMiddleware
+from deerflow.agents.ordering import _insert_extra
 from deerflow.agents.middlewares.dangling_tool_call_middleware import DanglingToolCallMiddleware
 from deerflow.agents.middlewares.tool_error_handling_middleware import ToolErrorHandlingMiddleware
 from deerflow.agents.thread_state import ThreadState
@@ -289,84 +290,3 @@ def _assemble_from_features(
             chain.append(chain.pop(clar_idx))
 
     return chain, extra_tools
-
-
-# ---------------------------------------------------------------------------
-# Internal: extra middleware insertion with @Next/@Prev
-# ---------------------------------------------------------------------------
-
-
-def _insert_extra(chain: list[AgentMiddleware], extras: list[AgentMiddleware]) -> None:
-    """Insert extra middlewares into *chain* using ``@Next``/``@Prev`` anchors.
-
-    Algorithm:
-      1. Validate: no middleware has both @Next and @Prev.
-      2. Conflict detection: two extras targeting same anchor (same or opposite direction) → error.
-      3. Insert unanchored extras before ClarificationMiddleware.
-      4. Insert anchored extras iteratively (supports cross-external anchoring).
-      5. If an anchor cannot be resolved after all rounds → error.
-    """
-    next_targets: dict[type, type] = {}
-    prev_targets: dict[type, type] = {}
-
-    anchored: list[tuple[AgentMiddleware, str, type]] = []
-    unanchored: list[AgentMiddleware] = []
-
-    for mw in extras:
-        next_anchor = getattr(type(mw), "_next_anchor", None)
-        prev_anchor = getattr(type(mw), "_prev_anchor", None)
-
-        if next_anchor and prev_anchor:
-            raise ValueError(f"{type(mw).__name__} cannot have both @Next and @Prev")
-
-        if next_anchor:
-            if next_anchor in next_targets:
-                raise ValueError(f"Conflict: {type(mw).__name__} and {next_targets[next_anchor].__name__} both @Next({next_anchor.__name__})")
-            if next_anchor in prev_targets:
-                raise ValueError(f"Conflict: {type(mw).__name__} @Next({next_anchor.__name__}) and {prev_targets[next_anchor].__name__} @Prev({next_anchor.__name__}) — use cross-anchoring between extras instead")
-            next_targets[next_anchor] = type(mw)
-            anchored.append((mw, "next", next_anchor))
-        elif prev_anchor:
-            if prev_anchor in prev_targets:
-                raise ValueError(f"Conflict: {type(mw).__name__} and {prev_targets[prev_anchor].__name__} both @Prev({prev_anchor.__name__})")
-            if prev_anchor in next_targets:
-                raise ValueError(f"Conflict: {type(mw).__name__} @Prev({prev_anchor.__name__}) and {next_targets[prev_anchor].__name__} @Next({prev_anchor.__name__}) — use cross-anchoring between extras instead")
-            prev_targets[prev_anchor] = type(mw)
-            anchored.append((mw, "prev", prev_anchor))
-        else:
-            unanchored.append(mw)
-
-    # Unanchored → before ClarificationMiddleware
-    clarification_idx = next(i for i, m in enumerate(chain) if isinstance(m, ClarificationMiddleware))
-    for mw in unanchored:
-        chain.insert(clarification_idx, mw)
-        clarification_idx += 1
-
-    # Anchored → iterative insertion (supports external-to-external anchoring)
-    pending = list(anchored)
-    max_rounds = len(pending) + 1
-    for _ in range(max_rounds):
-        if not pending:
-            break
-        remaining = []
-        for mw, direction, anchor in pending:
-            idx = next(
-                (i for i, m in enumerate(chain) if isinstance(m, anchor)),
-                None,
-            )
-            if idx is None:
-                remaining.append((mw, direction, anchor))
-                continue
-            if direction == "next":
-                chain.insert(idx + 1, mw)
-            else:
-                chain.insert(idx, mw)
-        if len(remaining) == len(pending):
-            names = [type(m).__name__ for m, _, _ in remaining]
-            anchor_types = {a for _, _, a in remaining}
-            remaining_types = {type(m) for m, _, _ in remaining}
-            circular = anchor_types & remaining_types
-            if circular:
-                raise ValueError(f"Circular dependency among extra middlewares: {', '.join(t.__name__ for t in circular)}")
-            raise ValueError(f"Cannot resolve positions for {', '.join(names)} — anchors {', '.join(a.__name__ for _, _, a in remaining)} not found in chain")
-        pending = remaining
