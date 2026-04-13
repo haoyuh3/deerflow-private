@@ -51,6 +51,7 @@ class SandboxMiddleware(AgentMiddleware[SandboxMiddlewareState]):
     @override
     def before_agent(self, state: SandboxMiddlewareState, runtime: Runtime) -> dict | None:
         # Skip acquisition if lazy_init is enabled
+        # sandbox 使用懒加载只有第一个工具调用时才需要创建
         if self._lazy_init:
             return super().before_agent(state, runtime)
 
